@@ -1,0 +1,442 @@
+{% extends 'scanner/base.html' %}
+
+{% block title %}{{ program.name }} - Workstation - shrecon{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header with Program Name and Controls -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-800 gap-4">
+        <div>
+            <div class="flex items-center space-x-3">
+                <h1 class="text-2xl font-bold text-white tracking-tight">{{ program.name }}</h1>
+                <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    RL: {{ program.rate_limit }}/s
+                </span>
+                {% if program.allow_active %}
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-rose-950/60 text-rose-400 border border-rose-800/50">Active Enabled</span>
+                {% endif %}
+                {% if program.allow_portscan %}
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-amber-950/60 text-amber-400 border border-amber-800/50">Portscan Enabled</span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-slate-400 mt-1">
+                Roots: <span class="code-font text-emerald-400">{{ program.get_roots|join:", " }}</span>
+                {% if program.out_of_scope %}
+                    &bull; Excluded: <span class="code-font text-rose-400">{{ program.get_out_of_scope_patterns|join:", " }}</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Scan Trigger Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+            <!-- Trigger Wide Recon Form -->
+            <form method="POST" action="{% url 'trigger_scan' pk=program.pk %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="scan_type" value="wide">
+                <button type="submit" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center space-x-1">
+                    <span>📡 Wide Recon</span>
+                </button>
+            </form>
+
+            <!-- Trigger Narrow Modal Trigger -->
+            <button onclick="document.getElementById('narrowModal').classList.remove('hidden')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center space-x-1">
+                <span>🔍 Narrow Recon</span>
+            </button>
+
+            <!-- Trigger Full Pipeline Form -->
+            <form method="POST" action="{% url 'trigger_scan' pk=program.pk %}" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="scan_type" value="full">
+                <button type="submit" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold transition flex items-center space-x-1 shadow-md shadow-emerald-950">
+                    <span>⚡ Full Pipeline</span>
+                </button>
+            </form>
+
+            <a href="{% url 'export_scope_json' pk=program.pk %}" title="Export as CLI scope.json" class="px-2.5 py-1.5 bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg text-xs border border-slate-700 transition">
+                📥 Export JSON
+            </a>
+
+            <a href="{% url 'export_report_markdown' pk=program.pk %}" title="Download full Markdown audit report" class="px-2.5 py-1.5 bg-indigo-900/60 hover:bg-indigo-800 text-indigo-300 hover:text-white rounded-lg text-xs border border-indigo-700 transition">
+                📄 Export Report (.md)
+            </a>
+
+            <a href="{% url 'program_edit' pk=program.pk %}" class="px-2.5 py-1.5 bg-slate-800/60 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg text-xs border border-slate-700 transition">
+                ⚙️ Settings
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
+            <div class="text-xs text-slate-400 font-medium">Total Assets</div>
+            <div class="text-xl font-bold text-white mt-1">{{ total_assets }}</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
+            <div class="text-xs text-emerald-400 font-medium">New (Last Run)</div>
+            <div class="text-xl font-bold text-emerald-400 mt-1">+{{ new_assets_count }}</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
+            <div class="text-xs text-indigo-400 font-medium">Reactivated</div>
+            <div class="text-xl font-bold text-indigo-400 mt-1">{{ react_assets_count }}</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
+            <div class="text-xs text-slate-400 font-medium">Endpoints</div>
+            <div class="text-xl font-bold text-slate-200 mt-1">{{ total_endpoints }}</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
+            <div class="text-xs text-amber-400 font-medium">Signals / Leads</div>
+            <div class="text-xl font-bold text-amber-400 mt-1">{{ total_signals }}</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 p-3.5 rounded-xl">
+            <div class="text-xs text-slate-400 font-medium">Open Ports</div>
+            <div class="text-xl font-bold text-slate-200 mt-1">{{ total_ports }}</div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="border-b border-slate-800 flex items-center justify-between">
+        <nav class="flex space-x-2 text-sm font-medium">
+            <a href="?tab=assets" class="px-4 py-2.5 border-b-2 transition flex items-center space-x-1.5
+                {% if tab == 'assets' %}border-emerald-500 text-emerald-400 font-semibold{% else %}border-transparent text-slate-400 hover:text-slate-200{% endif %}">
+                <span>🌐 Assets</span>
+                <span class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400">{{ total_assets }}</span>
+            </a>
+            <a href="?tab=endpoints" class="px-4 py-2.5 border-b-2 transition flex items-center space-x-1.5
+                {% if tab == 'endpoints' %}border-emerald-500 text-emerald-400 font-semibold{% else %}border-transparent text-slate-400 hover:text-slate-200{% endif %}">
+                <span>🔗 Endpoints</span>
+                <span class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400">{{ total_endpoints }}</span>
+            </a>
+            <a href="?tab=signals" class="px-4 py-2.5 border-b-2 transition flex items-center space-x-1.5
+                {% if tab == 'signals' %}border-emerald-500 text-emerald-400 font-semibold{% else %}border-transparent text-slate-400 hover:text-slate-200{% endif %}">
+                <span>⚡ Signals / Leads</span>
+                <span class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-amber-400 font-semibold">{{ total_signals }}</span>
+            </a>
+            <a href="?tab=ports" class="px-4 py-2.5 border-b-2 transition flex items-center space-x-1.5
+                {% if tab == 'ports' %}border-emerald-500 text-emerald-400 font-semibold{% else %}border-transparent text-slate-400 hover:text-slate-200{% endif %}">
+                <span>🚪 Ports</span>
+                <span class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400">{{ total_ports }}</span>
+            </a>
+            <a href="?tab=runs" class="px-4 py-2.5 border-b-2 transition flex items-center space-x-1.5
+                {% if tab == 'runs' %}border-emerald-500 text-emerald-400 font-semibold{% else %}border-transparent text-slate-400 hover:text-slate-200{% endif %}">
+                <span>📜 Runs History</span>
+                <span class="text-xs px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400">{{ program.runs.count }}</span>
+            </a>
+        </nav>
+
+        <!-- Search / Filter form -->
+        {% if tab == 'assets' or tab == 'endpoints' %}
+            <form method="GET" class="hidden sm:flex items-center space-x-2 pb-2">
+                <input type="hidden" name="tab" value="{{ tab }}">
+                <input type="text" name="q" value="{{ search_q }}" placeholder="Search {{ tab }}..."
+                       class="px-3 py-1 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                <button type="submit" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium">Filter</button>
+                {% if search_q %}
+                    <a href="?tab={{ tab }}" class="text-xs text-rose-400 hover:underline">Reset</a>
+                {% endif %}
+            </form>
+        {% endif %}
+    </div>
+
+    <!-- Tab 1: Assets -->
+    {% if tab == 'assets' %}
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Score</th>
+                            <th class="px-4 py-3">Host / URL</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Title</th>
+                            <th class="px-4 py-3">Technologies</th>
+                            <th class="px-4 py-3">Why Flagged</th>
+                            <th class="px-4 py-3">Diff Status</th>
+                            <th class="px-4 py-3 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        {% for a in assets %}
+                            <tr class="hover:bg-slate-800/40 transition">
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 rounded font-bold {% if a.score >= 5 %}bg-rose-950/80 text-rose-400 border border-rose-800/60{% elif a.score >= 3 %}bg-amber-950/80 text-amber-400 border border-amber-800/60{% else %}bg-slate-800 text-slate-400{% endif %}">
+                                        {{ a.score }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 code-font">
+                                    <div class="font-semibold text-white">{{ a.host }}</div>
+                                    {% if a.url %}
+                                        <a href="{{ a.url }}" target="_blank" class="text-slate-500 hover:text-emerald-400 transition text-[11px] truncate block max-w-xs">{{ a.url }}</a>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3">
+                                    {% if a.status %}
+                                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold {% if a.status == 200 %}bg-emerald-950/60 text-emerald-400 border border-emerald-800/40{% elif a.status in '401,403' %}bg-rose-950/60 text-rose-400 border border-rose-800/40{% elif a.status in '301,302' %}bg-blue-950/60 text-blue-400 border border-blue-800/40{% else %}bg-slate-800 text-slate-300{% endif %}">
+                                            {{ a.status }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-slate-600">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 max-w-xs truncate text-slate-300" title="{{ a.title }}">{{ a.title|default:"-" }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-wrap gap-1 max-w-xs">
+                                        {% for t in a.tech %}
+                                            <span class="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 text-[10px] border border-slate-700">{{ t }}</span>
+                                        {% empty %}
+                                            <span class="text-slate-600">-</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-slate-400 italic text-[11px]">{{ a.why|default:"-" }}</td>
+                                <td class="px-4 py-3">
+                                    {% if last_run and a.first_run == last_run %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">NEW</span>
+                                    {% elif last_run and a.react_run == last_run %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-700">REACTIVATED</span>
+                                    {% else %}
+                                        <span class="text-slate-500 text-[11px]">seen</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    {% if a.url %}
+                                        <button onclick="openNarrowWithUrl('{{ a.url }}')" class="text-emerald-400 hover:text-emerald-300 font-medium">Narrow &rarr;</button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-8 text-slate-500">No assets discovered yet. Run Wide Recon or Full Pipeline.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Tab 2: Endpoints -->
+    {% if tab == 'endpoints' %}
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Score</th>
+                            <th class="px-4 py-3">Normalized Shape</th>
+                            <th class="px-4 py-3">Parameters</th>
+                            <th class="px-4 py-3">Why Scored</th>
+                            <th class="px-4 py-3">Example URL</th>
+                            <th class="px-4 py-3">Diff</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        {% for ep in endpoints %}
+                            <tr class="hover:bg-slate-800/40 transition">
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 rounded font-bold {% if ep.score >= 5 %}bg-rose-950/80 text-rose-400 border border-rose-800/60{% elif ep.score >= 3 %}bg-amber-950/80 text-amber-400 border border-amber-800/60{% else %}bg-slate-800 text-slate-400{% endif %}">
+                                        {{ ep.score }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 code-font text-white max-w-sm truncate" title="{{ ep.shape }}">{{ ep.shape }}</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex flex-wrap gap-1 max-w-xs">
+                                        {% for p in ep.params.split %}
+                                            <span class="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 text-[10px] code-font">{{ p }}</span>
+                                        {% empty %}
+                                            <span class="text-slate-600">-</span>
+                                        {% endfor %}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 text-slate-400 italic text-[11px]">{{ ep.why|default:"-" }}</td>
+                                <td class="px-4 py-3 max-w-xs truncate">
+                                    <a href="{{ ep.example }}" target="_blank" class="code-font text-emerald-400/80 hover:text-emerald-300 truncate block">{{ ep.example }}</a>
+                                </td>
+                                <td class="px-4 py-3">
+                                    {% if last_run and ep.first_run == last_run %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-700">NEW</span>
+                                    {% elif last_run and ep.react_run == last_run %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-700">REACTIVATED</span>
+                                    {% else %}
+                                        <span class="text-slate-500 text-[11px]">seen</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-8 text-slate-500">No endpoints processed yet. Run Narrow Recon on a target asset.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Tab 3: Signals (Leads) -->
+    {% if tab == 'signals' %}
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Severity</th>
+                            <th class="px-4 py-3">Host</th>
+                            <th class="px-4 py-3">Template / Signal Type</th>
+                            <th class="px-4 py-3">Details / Matched Data</th>
+                            <th class="px-4 py-3">Discovered</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        {% for s in signals %}
+                            <tr class="hover:bg-slate-800/40 transition">
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 rounded text-[11px] font-bold
+                                        {% if s.severity == 'critical' or s.severity == 'high' %}bg-rose-950/80 text-rose-300 border border-rose-800
+                                        {% elif s.severity == 'medium' %}bg-amber-950/80 text-amber-300 border border-amber-800
+                                        {% elif s.severity == 'low' %}bg-blue-950/80 text-blue-300 border border-blue-800
+                                        {% else %}bg-slate-800 text-slate-300 border border-slate-700{% endif %}">
+                                        {{ s.severity|upper }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 code-font font-medium text-white">{{ s.host }}</td>
+                                <td class="px-4 py-3 font-semibold text-slate-200">{{ s.template }}</td>
+                                <td class="px-4 py-3 code-font text-slate-300 max-w-lg break-all">{{ s.matched }}</td>
+                                <td class="px-4 py-3 text-slate-500">{{ s.first_seen|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center py-8 text-slate-500">No signals discovered yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Tab 4: Ports -->
+    {% if tab == 'ports' %}
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Host</th>
+                            <th class="px-4 py-3">Port</th>
+                            <th class="px-4 py-3">First Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        {% for p in ports %}
+                            <tr class="hover:bg-slate-800/40 transition">
+                                <td class="px-4 py-3 code-font font-semibold text-white">{{ p.host }}</td>
+                                <td class="px-4 py-3 code-font text-emerald-400 font-bold">{{ p.port }}</td>
+                                <td class="px-4 py-3 text-slate-400">{{ p.first_seen|date:"Y-m-d H:i" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center py-8 text-slate-500">
+                                    No ports recorded. Make sure <span class="code-font text-amber-400">allow_portscan</span> is enabled in program settings.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Tab 5: Runs History -->
+    {% if tab == 'runs' %}
+        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-950 text-slate-400 uppercase border-b border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3">Run ID</th>
+                            <th class="px-4 py-3">Scan Type</th>
+                            <th class="px-4 py-3">Target</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Started</th>
+                            <th class="px-4 py-3">Completed</th>
+                            <th class="px-4 py-3 text-right">Logs</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-800/60">
+                        {% for r in runs %}
+                            <tr class="hover:bg-slate-800/40 transition">
+                                <td class="px-4 py-3 code-font text-white font-medium">{{ r.run_id }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-0.5 rounded text-slate-300 bg-slate-800 border border-slate-700">{{ r.get_scan_type_display }}</span>
+                                </td>
+                                <td class="px-4 py-3 code-font text-slate-400 max-w-xs truncate">{{ r.target|default:"-" }}</td>
+                                <td class="px-4 py-3">
+                                    {% if r.status == 'completed' %}
+                                        <span class="px-2 py-0.5 rounded-full text-emerald-400 bg-emerald-950 border border-emerald-800/50">Completed</span>
+                                    {% elif r.status == 'running' %}
+                                        <span class="px-2 py-0.5 rounded-full text-amber-400 bg-amber-950 border border-amber-800/50 animate-pulse">Running...</span>
+                                    {% elif r.status == 'failed' %}
+                                        <span class="px-2 py-0.5 rounded-full text-rose-400 bg-rose-950 border border-rose-800/50">Failed</span>
+                                    {% else %}
+                                        <span class="px-2 py-0.5 rounded-full text-slate-400 bg-slate-800">{{ r.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 text-slate-400">{{ r.started_at|date:"Y-m-d H:i:s"|default:"-" }}</td>
+                                <td class="px-4 py-3 text-slate-400">{{ r.completed_at|date:"Y-m-d H:i:s"|default:"-" }}</td>
+                                <td class="px-4 py-3 text-right space-x-2">
+                                    {% if r.status == 'running' or r.status == 'pending' %}
+                                        <form method="POST" action="{% url 'stop_scan' pk=r.pk %}" class="inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button type="submit" class="text-rose-400 hover:text-rose-300 font-medium">Stop</button>
+                                        </form>
+                                    {% endif %}
+                                    <a href="{% url 'scan_run_detail' pk=r.pk %}" class="text-emerald-400 hover:text-emerald-300 font-medium">Terminal &rarr;</a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center py-8 text-slate-500">No scans executed yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal for Narrow Recon -->
+<div id="narrowModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
+        <h3 class="text-lg font-bold text-white mb-2">Run Narrow Recon</h3>
+        <p class="text-xs text-slate-400 mb-4">
+            Runs deep crawl (katana) and passive archive extraction (gau) on a specific in-scope target URL.
+        </p>
+        <form method="POST" action="{% url 'trigger_scan' pk=program.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="scan_type" value="narrow">
+            <div class="mb-4">
+                <label class="block text-xs font-medium text-slate-300 mb-1">Target URL *</label>
+                <input type="url" id="narrowTargetInput" name="target" required placeholder="https://app.example.com"
+                       class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white code-font focus:outline-none focus:border-emerald-500">
+                <p class="text-[11px] text-slate-500 mt-1">Must strictly belong to this program's in-scope patterns.</p>
+            </div>
+            <div class="flex items-center justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('narrowModal').classList.add('hidden')" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition">Cancel</button>
+                <button type="submit" class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg transition shadow-md shadow-emerald-950">Start Narrow Scan</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openNarrowWithUrl(url) {
+        document.getElementById('narrowTargetInput').value = url;
+        document.getElementById('narrowModal').classList.remove('hidden');
+    }
+</script>
+{% endblock %}

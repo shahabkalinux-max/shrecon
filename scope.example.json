@@ -1,0 +1,4 @@
+{"in_scope": ["*.example.com", "example.com"], "out_of_scope": ["admin.example.com"],
+ "rate_limit": 5, "concurrency": 2, "timeout": 120,
+ "headers": {"X-Bug-Bounty": "yourhandle", "User-Agent": "research-yourhandle"},
+ "strict_headers": false, "allow_portscan": false, "allow_active": false}

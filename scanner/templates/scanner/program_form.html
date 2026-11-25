@@ -1,0 +1,219 @@
+{% extends 'scanner/base.html' %}
+
+{% block title %}{% if is_edit %}Edit {{ program.name }}{% else %}New Program Scope{% endif %} - shrecon{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div>
+            <h1 class="text-2xl font-bold text-white tracking-tight">
+                {% if is_edit %}Edit Program: {{ program.name }}{% else %}Configure New Program Scope{% endif %}
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">Specify target in-scope patterns, exclusions, rate limits, and permission flags.</p>
+        </div>
+        <a href="{% if is_edit %}{% url 'program_detail' pk=program.pk %}{% else %}{% url 'program_list' %}{% endif %}" class="text-sm text-slate-400 hover:text-white transition">
+            &larr; Cancel
+        </a>
+    </div>
+
+    <form method="POST" class="bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-6 shadow-sm">
+        {% csrf_token %}
+
+        <!-- Section 1: Basic Information -->
+        <div>
+            <h2 class="text-base font-semibold text-white mb-3 flex items-center space-x-2">
+                <span class="text-emerald-400">1.</span>
+                <span>Basic Information</span>
+            </h2>
+            <div class="grid grid-cols-1 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Program Name *</label>
+                    <input type="text" name="name" required value="{{ program.name|default:'' }}" placeholder="e.g. Example Bug Bounty / VDP"
+                           class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Description / Notes</label>
+                    <textarea name="description" rows="2" placeholder="e.g. HackerOne program notes, allowed scopes, bounty tiers..."
+                              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500">{{ program.description|default:'' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <!-- Section 2: Scope Guard -->
+        <div>
+            <h2 class="text-base font-semibold text-white mb-3 flex items-center space-x-2">
+                <span class="text-emerald-400">2.</span>
+                <span>Scope Boundaries (Scope Guard)</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-emerald-400 mb-1">In-Scope Patterns (wildcards allowed) *</label>
+                    <textarea name="in_scope" rows="5" required placeholder="*.example.com&#10;example.com&#10;api.example.net"
+                              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white code-font placeholder-slate-600 focus:outline-none focus:border-emerald-500">{{ program.in_scope|default:'' }}</textarea>
+                    <p class="text-[11px] text-slate-500 mt-1">One per line or comma-separated. Wildcards supported (fnmatch).</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-rose-400 mb-1">Out-of-Scope Exclusions (Strict Overrides)</label>
+                    <textarea name="out_of_scope" rows="5" placeholder="admin.example.com&#10;*.internal.example.com&#10;corp.example.com"
+                              class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white code-font placeholder-slate-600 focus:outline-none focus:border-rose-500">{{ program.out_of_scope|default:'' }}</textarea>
+                    <p class="text-[11px] text-slate-500 mt-1">Out-of-scope ALWAYS takes precedence over in-scope before probing.</p>
+                </div>
+            </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <!-- Section 3: Rate Limiting & Headers -->
+        <div>
+            <h2 class="text-base font-semibold text-white mb-3 flex items-center space-x-2">
+                <span class="text-emerald-400">3.</span>
+                <span>Rate Limits & Custom Headers</span>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Rate Limit (requests/sec)</label>
+                    <input type="number" name="rate_limit" min="1" max="100" value="{{ program.rate_limit|default:5 }}"
+                           class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Concurrency Threads</label>
+                    <input type="number" name="concurrency" min="1" max="20" value="{{ program.concurrency|default:2 }}"
+                           class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Tool Timeout (seconds)</label>
+                    <input type="number" name="timeout" min="10" max="3600" value="{{ program.timeout|default:300 }}"
+                           class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <label class="block text-xs font-medium text-slate-300 mb-1">Custom HTTP Headers (JSON Object)</label>
+                <textarea name="headers" rows="2" placeholder='{"X-Bug-Bounty": "your_handle", "User-Agent": "security-research"}'
+                          class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white code-font placeholder-slate-600 focus:outline-none focus:border-emerald-500">{{ headers_str|default:'{}' }}</textarea>
+                <div class="mt-2 flex items-center space-x-2">
+                    <input type="checkbox" id="strict_headers" name="strict_headers" {% if program.strict_headers %}checked{% endif %}
+                           class="rounded bg-slate-950 border-slate-700 text-emerald-600 focus:ring-0">
+                    <label for="strict_headers" class="text-xs text-slate-400">Strict Headers: Abort execution if a tool does not support passing custom headers</label>
+                </div>
+            </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <!-- Section 4: Safety & Plugin Permissions -->
+        <div>
+            <h2 class="text-base font-semibold text-white mb-3 flex items-center space-x-2">
+                <span class="text-emerald-400">4.</span>
+                <span>Active Probing & Plugin Safety Flags</span>
+            </h2>
+            <div class="space-y-3 bg-slate-950/50 p-4 rounded-lg border border-slate-800">
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="allow_portscan" name="allow_portscan" {% if program.allow_portscan %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0">
+                    <div>
+                        <label for="allow_portscan" class="text-sm font-medium text-slate-200">Allow Port Scanning (naabu)</label>
+                        <p class="text-xs text-slate-500">Default OFF. Many bug bounty programs forbid raw port scanning; confirm program rules first.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="allow_active" name="allow_active" {% if program.allow_active %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-rose-500 focus:ring-0">
+                    <div>
+                        <label for="allow_active" class="text-sm font-medium text-slate-200">Allow Active Probing (nuclei safe templates & arjun parameter discovery)</label>
+                        <p class="text-xs text-slate-500">Default OFF. Results are recorded as signals/leads for manual human verification.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="allow_screens" name="allow_screens" {% if program.allow_screens or not is_edit %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-blue-500 focus:ring-0">
+                    <div>
+                        <label for="allow_screens" class="text-sm font-medium text-slate-200">Allow Screenshots (gowitness)</label>
+                        <p class="text-xs text-slate-500">Captures visual web screenshots for responsive live hosts.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <hr class="border-slate-800">
+
+        <!-- Section 5: Scan Stage Selection -->
+        <div>
+            <h2 class="text-base font-semibold text-white mb-1 flex items-center space-x-2">
+                <span class="text-emerald-400">5.</span>
+                <span>Custom Scan Stages</span>
+            </h2>
+            <p class="text-xs text-slate-500 mb-3">Choose which pipeline stages to enable for Full Pipeline scans. Disabling a stage skips it entirely and saves time.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-slate-950/50 p-4 rounded-lg border border-slate-800">
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="enable_katana" name="enable_katana" {% if program.enable_katana or not is_edit %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-sky-500 focus:ring-0">
+                    <div>
+                        <label for="enable_katana" class="text-sm font-medium text-slate-200">🕷️ Katana Web Crawling</label>
+                        <p class="text-xs text-slate-500">Active deep crawl for endpoints, forms, and JS files.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="enable_gau" name="enable_gau" {% if program.enable_gau or not is_edit %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-sky-500 focus:ring-0">
+                    <div>
+                        <label for="enable_gau" class="text-sm font-medium text-slate-200">📚 Archive URLs (gau)</label>
+                        <p class="text-xs text-slate-500">Passive retrieval from Wayback Machine &amp; CommonCrawl.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="enable_ffuf" name="enable_ffuf" {% if program.enable_ffuf or not is_edit %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0">
+                    <div>
+                        <label for="enable_ffuf" class="text-sm font-medium text-slate-200">🔎 Content Discovery (ffuf)</label>
+                        <p class="text-xs text-slate-500">Active fuzzing for .env, .git, admin, swagger, backups. Requires allow_active.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="enable_js_analysis" name="enable_js_analysis" {% if program.enable_js_analysis or not is_edit %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-violet-500 focus:ring-0">
+                    <div>
+                        <label for="enable_js_analysis" class="text-sm font-medium text-slate-200">⚙️ JS Analysis &amp; Secret Mining</label>
+                        <p class="text-xs text-slate-500">Extract API paths and detect token/key leaks in JavaScript files.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="enable_param_discovery" name="enable_param_discovery" {% if program.enable_param_discovery or not is_edit %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-amber-500 focus:ring-0">
+                    <div>
+                        <label for="enable_param_discovery" class="text-sm font-medium text-slate-200">🔧 Parameter Discovery (arjun/x8)</label>
+                        <p class="text-xs text-slate-500">Find hidden query parameters on top endpoints. Requires allow_active.</p>
+                    </div>
+                </div>
+
+                <div class="flex items-start space-x-3">
+                    <input type="checkbox" id="enable_nuclei" name="enable_nuclei" {% if program.enable_nuclei or not is_edit %}checked{% endif %}
+                           class="mt-1 rounded bg-slate-950 border-slate-700 text-rose-500 focus:ring-0">
+                    <div>
+                        <label for="enable_nuclei" class="text-sm font-medium text-slate-200">🧬 Nuclei Safe Templates</label>
+                        <p class="text-xs text-slate-500">Low-noise misconfig &amp; exposure detection templates. Requires allow_active.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="pt-4 flex items-center justify-end space-x-3 border-t border-slate-800">
+            <a href="{% if is_edit %}{% url 'program_detail' pk=program.pk %}{% else %}{% url 'program_list' %}{% endif %}" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-sm transition">Cancel</a>
+            <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-semibold transition shadow-lg shadow-emerald-950">
+                {% if is_edit %}Save Changes{% else %}Create Program{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

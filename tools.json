@@ -1,0 +1,183 @@
+{
+  "subfinder": {
+    "args": [
+      "-d",
+      "{domain}",
+      "-silent"
+    ],
+    "sends_requests": false,
+    "version_cmd": [
+      "-version"
+    ]
+  },
+  "httpx": {
+    "args": [
+      "-silent",
+      "-json",
+      "-status-code",
+      "-title",
+      "-tech-detect",
+      "-rl",
+      "{rate}",
+      "-threads",
+      "{threads}",
+      "{headers}"
+    ],
+    "sends_requests": true,
+    "header_flag": "-H",
+    "version_cmd": [
+      "-version"
+    ]
+  },
+  "katana": {
+    "args": [
+      "-u",
+      "{target}",
+      "-silent",
+      "-d",
+      "3",
+      "-jc",
+      "-rl",
+      "{rate}",
+      "{headers}"
+    ],
+    "sends_requests": true,
+    "header_flag": "-H",
+    "version_cmd": [
+      "-version"
+    ]
+  },
+  "gau": {
+    "args": [
+      "{domain}"
+    ],
+    "sends_requests": false,
+    "version_cmd": [
+      "--version"
+    ]
+  },
+  "dnsx": {
+    "args": [
+      "-silent",
+      "-json",
+      "-a",
+      "-cname",
+      "-rl",
+      "{rate}"
+    ],
+    "sends_requests": false,
+    "version_cmd": [
+      "-version"
+    ]
+  },
+  "naabu": {
+    "args": [
+      "-silent",
+      "-json",
+      "-rate",
+      "{rate}",
+      "-top-ports",
+      "100"
+    ],
+    "sends_requests": false,
+    "version_cmd": [
+      "-version"
+    ],
+    "_note": "raw TCP, HTTP headers do not apply; gated by allow_portscan in scope.json"
+  },
+  "nuclei": {
+    "args": [
+      "-u",
+      "{url}",
+      "-tags",
+      "{tags}",
+      "-severity",
+      "low,medium,high,critical",
+      "-rl",
+      "{rate}",
+      "-silent",
+      "-jsonl",
+      "{headers}"
+    ],
+    "sends_requests": true,
+    "header_flag": "-H",
+    "version_cmd": [
+      "-version"
+    ]
+  },
+  "arjun": {
+    "args": [
+      "-u",
+      "{url}",
+      "--stable",
+      "-q",
+      "-oJ",
+      "{out}",
+      "-d",
+      "{delay}",
+      "{headers}"
+    ],
+    "sends_requests": true,
+    "header_flag": "--headers",
+    "header_mode": "joined",
+    "version_cmd": [
+      "-h"
+    ]
+  },
+  "gowitness": {
+    "args": [
+      "scan",
+      "file",
+      "-f",
+      "/dev/stdin",
+      "--threads",
+      "4",
+      "{headers}"
+    ],
+    "sends_requests": true,
+    "header_flag": null,
+    "version_cmd": [
+      "version"
+    ],
+    "_note": "set header_flag after checking `gowitness scan file -h` for your version"
+  },
+  "ffuf": {
+    "args": [
+      "-u",
+      "{url}/FUZZ",
+      "-w",
+      "{wordlist}",
+      "-mc",
+      "200,204,301,302,307,401,403,405",
+      "-rate",
+      "{rate}",
+      "-t",
+      "{threads}",
+      "-s",
+      "-json",
+      "{headers}"
+    ],
+    "sends_requests": true,
+    "header_flag": "-H",
+    "version_cmd": [
+      "-V"
+    ]
+  },
+  "x8": {
+    "args": [
+      "-u",
+      "{url}",
+      "-w",
+      "{wordlist}",
+      "--output",
+      "{out}",
+      "{headers}"
+    ],
+    "sends_requests": true,
+    "header_flag": "--headers",
+    "header_mode": "repeat",
+    "version_cmd": [
+      "-V"
+    ]
+  }
+}

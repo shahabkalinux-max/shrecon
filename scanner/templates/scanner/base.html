@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}shrecon - Modular Bug Bounty Recon Orchestrator{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            900: '#14532d',
+                            dark: '#0f172a',
+                            panel: '#1e293b',
+                            border: '#334155',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #090d16; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+        .code-font { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Top Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <a href="{% url 'program_list' %}" class="flex items-center space-x-2 text-emerald-400 font-bold text-xl tracking-wider">
+                    <span class="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">⚡</span>
+                    <span>shrecon</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-normal">Django Edition</span>
+                </a>
+                <nav class="hidden md:flex space-x-2 ml-6 text-sm font-medium">
+                    <a href="{% url 'program_list' %}" class="px-3 py-1.5 rounded-md hover:bg-slate-800 text-slate-300 hover:text-white transition">Programs</a>
+                    <a href="{% url 'tools_status' %}" class="px-3 py-1.5 rounded-md hover:bg-slate-800 text-slate-300 hover:text-white transition">Tools Doctor</a>
+                    <a href="/admin/" target="_blank" class="px-3 py-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-white transition">Django Admin</a>
+                </nav>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="{% url 'program_create' %}" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition shadow-lg shadow-emerald-950 flex items-center space-x-1">
+                    <span>+ New Program</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Global Messages -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 w-full">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="p-4 mb-3 rounded-lg text-sm font-medium border flex items-center justify-between
+                    {% if message.tags == 'error' %}bg-rose-950/50 border-rose-800 text-rose-200
+                    {% elif message.tags == 'success' %}bg-emerald-950/50 border-emerald-800 text-emerald-200
+                    {% else %}bg-slate-800 border-slate-700 text-slate-200{% endif %}">
+                    <div>{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-800/80 bg-slate-950 py-4 text-center text-xs text-slate-500">
+        shrecon Recon Orchestrator &bull; Invariant Scope Protection &bull; Authorized Targets Only
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
